@@ -1,0 +1,1075 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Adam Sengsavang — Realtor Expenses</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700&family=Syne+Mono&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f5f3ee;
+    --surface: #ffffff;
+    --surface2: #f0ede6;
+    --border: #e0dbd0;
+    --accent: #1c3a2e;
+    --accent2: #2d5a45;
+    --amber: #c8861a;
+    --amber-bg: #fef3e0;
+    --text: #1a1a17;
+    --text-muted: #7a7465;
+    --text-dim: #b8b0a2;
+    --success: #2d7a4a;
+    --danger: #c0392b;
+    --radius: 10px;
+    --dining: #8b3a62;
+    --dining-bg: #f9eff5;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; font-size: 14px; }
+
+  /* SYNC STATUS BAR */
+  .sync-bar {
+    background: var(--accent);
+    padding: 6px 36px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-family: 'Syne Mono', monospace;
+    font-size: 11px;
+    color: rgba(255,255,255,0.6);
+  }
+  .sync-status { display: flex; align-items: center; gap: 8px; }
+  .sync-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: #888; transition: background 0.3s;
+  }
+  .sync-dot.synced { background: #5a9e6e; }
+  .sync-dot.syncing { background: var(--amber); animation: pulse 1s infinite; }
+  .sync-dot.error { background: #c0392b; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+  .setup-link {
+    color: var(--amber);
+    cursor: pointer;
+    text-decoration: underline;
+    background: none; border: none;
+    font-family: 'Syne Mono', monospace;
+    font-size: 11px;
+  }
+
+  /* HEADER */
+  .header { background: var(--accent); padding: 24px 36px 0; position: relative; overflow: hidden; }
+  .header::after { content:''; position:absolute; right:-60px; top:-60px; width:280px; height:280px; border-radius:50%; background:rgba(255,255,255,0.03); pointer-events:none; }
+  .header-top { display:flex; align-items:flex-end; justify-content:space-between; margin-bottom:20px; position:relative; z-index:1; }
+  .header-eyebrow { font-family:'Syne Mono',monospace; font-size:10px; color:rgba(255,255,255,0.4); letter-spacing:2px; text-transform:uppercase; margin-bottom:5px; }
+  .header-title { font-family:'Syne',sans-serif; font-size:22px; font-weight:700; color:#fff; letter-spacing:-0.3px; }
+  .year-selector { display:flex; align-items:center; gap:8px; background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.12); border-radius:8px; padding:7px 12px; }
+  .year-selector label { font-family:'Syne Mono',monospace; font-size:10px; color:rgba(255,255,255,0.5); text-transform:uppercase; letter-spacing:1px; }
+  .year-selector select { background:none; border:none; color:#fff; font-family:'Syne Mono',monospace; font-size:13px; font-weight:500; outline:none; cursor:pointer; appearance:none; }
+  .year-selector select option { background:var(--accent); }
+  .tabs { display:flex; gap:2px; position:relative; z-index:1; overflow-x:auto; }
+  .tab { padding:10px 18px; font-family:'Syne',sans-serif; font-size:12px; font-weight:600; color:rgba(255,255,255,0.45); cursor:pointer; border-bottom:2px solid transparent; transition:all 0.2s; background:none; border-top:none; border-left:none; border-right:none; letter-spacing:0.3px; white-space:nowrap; }
+  .tab:hover { color:rgba(255,255,255,0.75); }
+  .tab.active { color:#fff; border-bottom-color:var(--amber); }
+  .tab.active[data-tab="dining"] { border-bottom-color:#e085b0; }
+
+  /* MAIN */
+  .main { padding:24px 36px; max-width:1100px; }
+
+  /* SUMMARY */
+  .summary-bar { display:grid; grid-template-columns:repeat(6,1fr); gap:10px; margin-bottom:24px; }
+  .sum-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:12px 14px; }
+  .sum-label { font-family:'Syne Mono',monospace; font-size:10px; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.8px; margin-bottom:4px; }
+  .sum-amount { font-family:'Syne Mono',monospace; font-size:16px; font-weight:500; color:var(--accent); }
+  .sum-count { font-size:10px; color:var(--text-dim); margin-top:2px; }
+  .sum-card.highlight { background:var(--accent); }
+  .sum-card.highlight .sum-label { color:rgba(255,255,255,0.5); }
+  .sum-card.highlight .sum-amount { color:#fff; font-size:18px; }
+  .sum-card.highlight .sum-count { color:rgba(255,255,255,0.4); }
+
+  /* PANEL */
+  .panel { display:none; }
+  .panel.active { display:block; }
+  .two-col { display:grid; grid-template-columns:360px 1fr; gap:20px; align-items:start; }
+
+  /* ENTRY CARD */
+  .entry-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; }
+  .entry-header { padding:13px 16px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:8px; }
+  .entry-header-text { font-family:'Syne',sans-serif; font-size:11px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:1px; }
+  .entry-body { padding:16px; }
+
+  /* UPLOAD */
+  .upload-zone { border:1.5px dashed var(--border); border-radius:8px; padding:18px 14px; text-align:center; cursor:pointer; transition:all 0.2s; margin-bottom:12px; position:relative; background:var(--surface2); }
+  .upload-zone:hover { border-color:var(--accent2); }
+  .upload-zone.dragover { border-color:var(--accent); background:#e8f0ec; }
+  .upload-zone input[type="file"] { position:absolute; inset:0; opacity:0; cursor:pointer; width:100%; height:100%; }
+  .upload-icon { font-size:22px; margin-bottom:5px; }
+  .upload-text { font-size:11px; color:var(--text-muted); line-height:1.5; }
+  .upload-preview { width:100%; max-height:110px; object-fit:contain; border-radius:6px; display:none; margin-bottom:6px; }
+  .ai-btn { width:100%; padding:9px; background:var(--accent); border:none; border-radius:6px; color:#fff; font-family:'Syne',sans-serif; font-size:12px; font-weight:600; cursor:pointer; transition:all 0.2s; display:none; align-items:center; justify-content:center; gap:6px; margin-bottom:12px; letter-spacing:0.3px; }
+  .ai-btn:hover { background:var(--accent2); }
+  .ai-btn.loading { opacity:0.7; cursor:wait; }
+  .divider { display:flex; align-items:center; gap:10px; margin:10px 0; color:var(--text-dim); font-size:10px; font-family:'Syne Mono',monospace; text-transform:uppercase; letter-spacing:1px; }
+  .divider::before,.divider::after { content:''; flex:1; height:1px; background:var(--border); }
+  .ai-result { background:#edf2ef; border:1px solid #c8ddd2; border-radius:6px; padding:8px 10px; margin-bottom:10px; font-size:11px; font-family:'Syne Mono',monospace; color:var(--text-muted); display:none; }
+  .ai-result.visible { display:block; }
+  .ai-result span { color:var(--accent); font-weight:600; }
+
+  /* FORM */
+  .form-row { margin-bottom:10px; }
+  .form-row label { display:block; font-family:'Syne Mono',monospace; font-size:10px; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.8px; margin-bottom:4px; }
+  .form-row input,.form-row select,.form-row textarea { width:100%; background:var(--surface2); border:1px solid var(--border); border-radius:6px; color:var(--text); font-family:'Inter',sans-serif; font-size:13px; padding:8px 10px; transition:border-color 0.2s; outline:none; appearance:none; }
+  .form-row input:focus,.form-row select:focus,.form-row textarea:focus { border-color:var(--accent2); }
+  .form-row textarea { resize:vertical; min-height:52px; }
+  .form-grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .form-grid-3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; }
+  .submit-btn { width:100%; padding:10px; background:var(--accent); border:none; border-radius:6px; color:#fff; font-family:'Syne',sans-serif; font-size:12px; font-weight:700; cursor:pointer; transition:all 0.15s; margin-top:4px; letter-spacing:0.5px; text-transform:uppercase; }
+  .submit-btn:hover { background:var(--accent2); }
+  .submit-btn.dining-btn { background:var(--dining); }
+  .submit-btn.dining-btn:hover { background:#7a2f56; }
+
+  /* WHO TOGGLE for dining */
+  .who-toggle { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:10px; }
+  .who-btn { padding:9px; background:var(--surface2); border:1px solid var(--border); border-radius:6px; color:var(--text-muted); font-family:'Syne',sans-serif; font-size:12px; font-weight:600; cursor:pointer; transition:all 0.15s; text-align:center; }
+  .who-btn.active { background:var(--dining-bg); border-color:var(--dining); color:var(--dining); }
+
+  /* EV badge */
+  .ev-badge { display:inline-flex; align-items:center; gap:4px; background:#e8f4fd; color:#1a5276; font-family:'Syne Mono',monospace; font-size:10px; padding:2px 7px; border-radius:4px; border:1px solid #b8d8f0; }
+  .km-note { background:#e8f4fd; border:1px solid #b8d8f0; border-radius:6px; padding:8px 10px; font-size:11px; color:#1a5276; font-family:'Inter',sans-serif; margin-top:6px; line-height:1.5; }
+
+  /* RECEIPTS TABLE */
+  .receipts-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; }
+  .receipts-header { padding:12px 16px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; }
+  .receipts-header-left { font-family:'Syne',sans-serif; font-size:11px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:1px; }
+  .export-btn { font-family:'Syne Mono',monospace; font-size:11px; background:none; border:1px solid var(--border); color:var(--text-muted); padding:5px 10px; border-radius:5px; cursor:pointer; transition:all 0.2s; }
+  .export-btn:hover { color:var(--text); border-color:var(--accent2); }
+  .filter-row { padding:8px 16px; border-bottom:1px solid var(--border); display:flex; gap:8px; flex-wrap:wrap; background:var(--surface2); }
+  .filter-row select,.filter-row input { background:var(--surface); border:1px solid var(--border); border-radius:5px; color:var(--text); font-family:'Syne Mono',monospace; font-size:10px; padding:5px 7px; outline:none; appearance:none; }
+  .receipts-list { max-height:500px; overflow-y:auto; }
+  .receipt-row { display:grid; grid-template-columns:78px 1fr 100px 78px 26px; gap:8px; align-items:center; padding:10px 16px; border-bottom:1px solid var(--border); transition:background 0.12s; }
+  .receipt-row:last-child { border-bottom:none; }
+  .receipt-row:hover { background:var(--surface2); }
+  .receipt-date { font-family:'Syne Mono',monospace; font-size:11px; color:var(--text-muted); }
+  .receipt-info { min-width:0; }
+  .receipt-vendor { font-size:13px; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .receipt-notes { font-size:11px; color:var(--text-muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:1px; }
+  .receipt-cat { font-size:10px; font-family:'Syne Mono',monospace; padding:3px 6px; border-radius:4px; text-align:center; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; background:#edf2ef; color:var(--accent); }
+  .receipt-cat.dining-cat { background:var(--dining-bg); color:var(--dining); }
+  .receipt-amount { font-family:'Syne Mono',monospace; font-size:13px; text-align:right; font-weight:600; color:var(--accent); }
+  .delete-btn { background:none; border:none; color:var(--text-dim); cursor:pointer; font-size:15px; padding:2px; transition:color 0.15s; line-height:1; }
+  .delete-btn:hover { color:var(--danger); }
+  .empty-state { padding:40px 20px; text-align:center; color:var(--text-dim); font-size:12px; font-family:'Syne Mono',monospace; }
+  .empty-icon { font-size:26px; margin-bottom:8px; opacity:0.3; }
+
+  /* SETUP MODAL */
+  .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:200; display:none; align-items:center; justify-content:center; padding:20px; }
+  .modal-overlay.open { display:flex; }
+  .modal { background:var(--surface); border-radius:14px; max-width:540px; width:100%; padding:28px; max-height:90vh; overflow-y:auto; }
+  .modal-title { font-family:'Syne',sans-serif; font-size:18px; font-weight:700; margin-bottom:6px; }
+  .modal-sub { font-size:13px; color:var(--text-muted); margin-bottom:20px; line-height:1.5; }
+  .step { display:flex; gap:14px; margin-bottom:18px; }
+  .step-num { width:26px; height:26px; border-radius:50%; background:var(--accent); color:#fff; font-family:'Syne',sans-serif; font-size:12px; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0; margin-top:2px; }
+  .step-content { flex:1; }
+  .step-title { font-size:13px; font-weight:600; margin-bottom:3px; }
+  .step-desc { font-size:12px; color:var(--text-muted); line-height:1.5; }
+  .step-input { width:100%; background:var(--surface2); border:1px solid var(--border); border-radius:6px; color:var(--text); font-family:'Syne Mono',monospace; font-size:12px; padding:8px 10px; outline:none; margin-top:6px; }
+  .step-input:focus { border-color:var(--accent2); }
+  .modal-actions { display:flex; gap:10px; margin-top:20px; }
+  .btn-primary { flex:1; padding:11px; background:var(--accent); border:none; border-radius:8px; color:#fff; font-family:'Syne',sans-serif; font-size:13px; font-weight:700; cursor:pointer; transition:all 0.15s; }
+  .btn-primary:hover { background:var(--accent2); }
+  .btn-secondary { padding:11px 16px; background:none; border:1px solid var(--border); border-radius:8px; color:var(--text-muted); font-family:'Syne',sans-serif; font-size:13px; font-weight:600; cursor:pointer; }
+  .code-block { background:var(--surface2); border:1px solid var(--border); border-radius:6px; padding:10px 12px; font-family:'Syne Mono',monospace; font-size:11px; color:var(--accent); margin-top:6px; line-height:1.8; white-space:pre-wrap; word-break:break-all; }
+  .copy-btn { font-family:'Syne Mono',monospace; font-size:10px; background:none; border:1px solid var(--border); color:var(--text-muted); padding:3px 8px; border-radius:4px; cursor:pointer; margin-top:4px; }
+
+  /* TOAST */
+  .toast { position:fixed; bottom:24px; right:24px; background:var(--accent); border-radius:8px; padding:11px 16px; font-size:12px; font-family:'Syne Mono',monospace; color:#fff; transform:translateY(80px); opacity:0; transition:all 0.3s; z-index:300; }
+  .toast.show { transform:translateY(0); opacity:1; }
+  .toast.error { background:var(--danger); }
+  ::-webkit-scrollbar { width:4px; }
+  ::-webkit-scrollbar-thumb { background:var(--border); border-radius:2px; }
+  select option { background:#fff; }
+</style>
+</head>
+<body>
+
+<!-- SYNC BAR -->
+<div class="sync-bar">
+  <div class="sync-status">
+    <div class="sync-dot" id="sync-dot"></div>
+    <span id="sync-label">Not connected to Google Sheets</span>
+  </div>
+  <button class="setup-link" onclick="openSetup()">⚙ Connect Google Sheets</button>
+</div>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-top">
+    <div>
+      <div class="header-eyebrow">Calgary Realtor</div>
+      <div class="header-title">Adam Sengsavang — Business Expenses</div>
+    </div>
+    <div class="year-selector">
+      <label>Year</label>
+      <select id="globalYear" onchange="renderAll()">
+        <option value="2026" selected>2026</option>
+        <option value="2025">2025</option>
+        <option value="2024">2024</option>
+      </select>
+    </div>
+  </div>
+  <div class="tabs">
+    <button class="tab active" data-tab="general" onclick="switchTab('general')">📋 General</button>
+    <button class="tab" data-tab="vehicle" onclick="switchTab('vehicle')">⚡ EV & Vehicle</button>
+    <button class="tab" data-tab="marketing" onclick="switchTab('marketing')">📣 Marketing</button>
+    <button class="tab" data-tab="office" onclick="switchTab('office')">🏢 Office & Tech</button>
+    <button class="tab" data-tab="professional" onclick="switchTab('professional')">🎓 Professional</button>
+    <button class="tab" data-tab="dining" onclick="switchTab('dining')">🍽 Client Dining</button>
+  </div>
+</div>
+
+<div class="main">
+  <!-- SUMMARY -->
+  <div class="summary-bar">
+    <div class="sum-card highlight">
+      <div class="sum-label">Total YTD</div>
+      <div class="sum-amount" id="sum-total">$0.00</div>
+      <div class="sum-count" id="cnt-total">0 receipts</div>
+    </div>
+    <div class="sum-card"><div class="sum-label">General</div><div class="sum-amount" id="sum-general">$0.00</div><div class="sum-count" id="cnt-general">0</div></div>
+    <div class="sum-card"><div class="sum-label">EV & Vehicle</div><div class="sum-amount" id="sum-vehicle">$0.00</div><div class="sum-count" id="cnt-vehicle">0</div></div>
+    <div class="sum-card"><div class="sum-label">Marketing</div><div class="sum-amount" id="sum-marketing">$0.00</div><div class="sum-count" id="cnt-marketing">0</div></div>
+    <div class="sum-card"><div class="sum-label">Office & Tech</div><div class="sum-amount" id="sum-office">$0.00</div><div class="sum-count" id="cnt-office">0</div></div>
+    <div class="sum-card"><div class="sum-label">Client Dining</div><div class="sum-amount" id="sum-dining" style="color:var(--dining)">$0.00</div><div class="sum-count" id="cnt-dining">0</div></div>
+  </div>
+
+  <!-- ── GENERAL ── -->
+  <div class="panel active" id="panel-general">
+    <div class="two-col">
+      <div><div class="entry-card">
+        <div class="entry-header"><div class="entry-header-text">Add General Expense</div></div>
+        <div class="entry-body">
+          <div class="upload-zone" id="uz-general" ondragover="dragOver(event,'general')" ondragleave="dragLeave('general')" ondrop="drop(event,'general')">
+            <input type="file" accept="image/*" id="file-general" onchange="fileSelected('general')">
+            <img class="upload-preview" id="preview-general">
+            <div class="upload-icon">📄</div>
+            <div class="upload-text">Drop receipt or click to browse</div>
+          </div>
+          <button class="ai-btn" id="ai-btn-general" onclick="scanReceipt('general')">✨ Scan with AI</button>
+          <div class="ai-result" id="ai-result-general"></div>
+          <div class="divider">or enter manually</div>
+          <div class="form-grid-2">
+            <div class="form-row"><label>Date</label><input type="date" id="gen-date"></div>
+            <div class="form-row"><label>Amount ($)</label><input type="number" id="gen-amount" placeholder="0.00" step="0.01"></div>
+          </div>
+          <div class="form-row"><label>Vendor / Payee</label><input type="text" id="gen-vendor"></div>
+          <div class="form-row"><label>Category</label>
+            <select id="gen-category">
+              <option value="">Select...</option>
+              <optgroup label="Association & Licensing">
+                <option>CREB Membership & Dues</option><option>RECA License Fees</option>
+                <option>AREA Membership</option><option>CREA Dues</option>
+              </optgroup>
+              <optgroup label="Client Entertainment">
+                <option>Client Meals & Entertainment</option><option>Client Gifts (≤$50 limit)</option><option>Referral Fees Paid</option>
+              </optgroup>
+              <optgroup label="Brokerage">
+                <option>Brokerage Desk Fees</option><option>Commission Split</option><option>E&O Insurance</option>
+              </optgroup>
+              <optgroup label="Other">
+                <option>Bank Fees & Charges</option><option>Postage & Courier</option><option>General Business</option>
+              </optgroup>
+            </select>
+          </div>
+          <div class="form-row"><label>Notes</label><textarea id="gen-notes" placeholder="Optional notes"></textarea></div>
+          <button class="submit-btn" onclick="addExpense('general')">Add Expense</button>
+        </div>
+      </div></div>
+      <div><div class="receipts-card">
+        <div class="receipts-header"><div class="receipts-header-left">General Expenses</div><button class="export-btn" onclick="exportCSV('general')">↓ CSV</button></div>
+        <div class="filter-row">
+          <select id="filter-gen-cat" onchange="renderList('general')">
+            <option value="">All categories</option>
+            <option>CREB Membership & Dues</option><option>RECA License Fees</option><option>AREA Membership</option><option>CREA Dues</option>
+            <option>Client Meals & Entertainment</option><option>Client Gifts (≤$50 limit)</option><option>Referral Fees Paid</option>
+            <option>Brokerage Desk Fees</option><option>Commission Split</option><option>E&O Insurance</option>
+            <option>Bank Fees & Charges</option><option>Postage & Courier</option><option>General Business</option>
+          </select>
+        </div>
+        <div class="receipts-list" id="list-general"></div>
+      </div></div>
+    </div>
+  </div>
+
+  <!-- ── VEHICLE ── -->
+  <div class="panel" id="panel-vehicle">
+    <div class="two-col">
+      <div><div class="entry-card">
+        <div class="entry-header"><div class="entry-header-text">EV & Vehicle</div><div class="ev-badge">⚡ Both EVs</div></div>
+        <div class="entry-body">
+          <div class="upload-zone" id="uz-vehicle" ondragover="dragOver(event,'vehicle')" ondragleave="dragLeave('vehicle')" ondrop="drop(event,'vehicle')">
+            <input type="file" accept="image/*" id="file-vehicle" onchange="fileSelected('vehicle')">
+            <img class="upload-preview" id="preview-vehicle">
+            <div class="upload-icon">⚡</div>
+            <div class="upload-text">Drop receipt or click to browse</div>
+          </div>
+          <button class="ai-btn" id="ai-btn-vehicle" onclick="scanReceipt('vehicle')">✨ Scan with AI</button>
+          <div class="ai-result" id="ai-result-vehicle"></div>
+          <div class="divider">or enter manually</div>
+          <div class="form-grid-2">
+            <div class="form-row"><label>Date</label><input type="date" id="veh-date"></div>
+            <div class="form-row"><label>Amount ($)</label><input type="number" id="veh-amount" placeholder="0.00" step="0.01"></div>
+          </div>
+          <div class="form-row"><label>Vehicle</label>
+            <select id="veh-vehicle">
+              <option value="">Select...</option><option>VW Buzz (Adam)</option><option>Manda's EV</option><option>Both / General</option>
+            </select>
+          </div>
+          <div class="form-row"><label>Vendor</label><input type="text" id="veh-vendor" placeholder="e.g. FLO, ChargePoint"></div>
+          <div class="form-row"><label>Category</label>
+            <select id="veh-category" onchange="toggleKmRow()">
+              <option value="">Select...</option>
+              <optgroup label="EV-Specific">
+                <option>Public Charging (FLO / ChargePoint)</option><option>Home Charging (Business %)</option>
+                <option>EV Lease / Financing Payment (Business %)</option><option>EV Registration & License Plates</option><option>EV Insurance (Business %)</option>
+              </optgroup>
+              <optgroup label="General Vehicle">
+                <option>Tires & Winter Tires</option><option>Detailing & Car Wash</option>
+                <option>Parking (Client / Showing)</option><option>Parking (Downtown / Office)</option><option>Accessories & Equipment</option>
+              </optgroup>
+              <optgroup label="Mileage Log">
+                <option>Business KM Log Entry</option>
+              </optgroup>
+            </select>
+          </div>
+          <div class="form-row" id="km-row" style="display:none"><label>Business KM</label><input type="number" id="veh-km" placeholder="e.g. 45" step="1"></div>
+          <div class="form-row"><label>Notes</label><textarea id="veh-notes" placeholder="e.g. showing at 123 Main NW, 45km round trip"></textarea></div>
+          <div class="km-note">💡 Keep a mileage log to support home charging (CRA requirement for EV deduction).</div>
+          <button class="submit-btn" style="margin-top:12px" onclick="addExpense('vehicle')">Add Expense</button>
+        </div>
+      </div></div>
+      <div><div class="receipts-card">
+        <div class="receipts-header"><div class="receipts-header-left">Vehicle Expenses</div><button class="export-btn" onclick="exportCSV('vehicle')">↓ CSV</button></div>
+        <div class="filter-row">
+          <select id="filter-veh-cat" onchange="renderList('vehicle')">
+            <option value="">All categories</option>
+            <option>Public Charging (FLO / ChargePoint)</option><option>Home Charging (Business %)</option>
+            <option>EV Lease / Financing Payment (Business %)</option><option>EV Registration & License Plates</option><option>EV Insurance (Business %)</option>
+            <option>Tires & Winter Tires</option><option>Detailing & Car Wash</option>
+            <option>Parking (Client / Showing)</option><option>Parking (Downtown / Office)</option><option>Accessories & Equipment</option>
+            <option>Business KM Log Entry</option>
+          </select>
+          <select id="filter-veh-veh" onchange="renderList('vehicle')">
+            <option value="">All vehicles</option><option>VW Buzz (Adam)</option><option>Manda's EV</option><option>Both / General</option>
+          </select>
+        </div>
+        <div class="receipts-list" id="list-vehicle"></div>
+      </div></div>
+    </div>
+  </div>
+
+  <!-- ── MARKETING ── -->
+  <div class="panel" id="panel-marketing">
+    <div class="two-col">
+      <div><div class="entry-card">
+        <div class="entry-header"><div class="entry-header-text">Marketing Expense</div></div>
+        <div class="entry-body">
+          <div class="upload-zone" id="uz-marketing" ondragover="dragOver(event,'marketing')" ondragleave="dragLeave('marketing')" ondrop="drop(event,'marketing')">
+            <input type="file" accept="image/*" id="file-marketing" onchange="fileSelected('marketing')">
+            <img class="upload-preview" id="preview-marketing">
+            <div class="upload-icon">📣</div>
+            <div class="upload-text">Drop receipt or click to browse</div>
+          </div>
+          <button class="ai-btn" id="ai-btn-marketing" onclick="scanReceipt('marketing')">✨ Scan with AI</button>
+          <div class="ai-result" id="ai-result-marketing"></div>
+          <div class="divider">or enter manually</div>
+          <div class="form-grid-2">
+            <div class="form-row"><label>Date</label><input type="date" id="mkt-date"></div>
+            <div class="form-row"><label>Amount ($)</label><input type="number" id="mkt-amount" placeholder="0.00" step="0.01"></div>
+          </div>
+          <div class="form-row"><label>Vendor / Platform</label><input type="text" id="mkt-vendor"></div>
+          <div class="form-row"><label>Category</label>
+            <select id="mkt-category">
+              <option value="">Select...</option>
+              <optgroup label="Listing Marketing">
+                <option>Professional Photography</option><option>Videography / Drone</option><option>Virtual Tours / 3D Matterport</option>
+                <option>For Sale / Open House Signs</option><option>Staging Costs</option><option>Feature Sheets & Print Materials</option>
+              </optgroup>
+              <optgroup label="Digital">
+                <option>Facebook / Instagram Ads</option><option>Google Ads</option><option>REALTOR.ca / MLS Premium</option>
+                <option>Website Hosting & IDX</option><option>Email Marketing</option>
+              </optgroup>
+              <optgroup label="Print & Brand">
+                <option>Business Cards & Stationery</option><option>Branded Merchandise</option>
+                <option>Flyer Distribution / Canada Post</option><option>Billboard / Bench Advertising</option><option>Branded Clothing</option>
+              </optgroup>
+              <optgroup label="Client">
+                <option>Client Appreciation Events</option><option>Sponsorships (Local Calgary)</option>
+                <option>Open House Supplies</option><option>Pop-bys & Client Gifts</option>
+              </optgroup>
+            </select>
+          </div>
+          <div class="form-row"><label>Listing Address (optional)</label><input type="text" id="mkt-listing" placeholder="e.g. 123 Main NW Calgary"></div>
+          <div class="form-row"><label>Notes</label><textarea id="mkt-notes"></textarea></div>
+          <button class="submit-btn" onclick="addExpense('marketing')">Add Expense</button>
+        </div>
+      </div></div>
+      <div><div class="receipts-card">
+        <div class="receipts-header"><div class="receipts-header-left">Marketing Expenses</div><button class="export-btn" onclick="exportCSV('marketing')">↓ CSV</button></div>
+        <div class="filter-row">
+          <select id="filter-mkt-cat" onchange="renderList('marketing')">
+            <option value="">All categories</option>
+            <option>Professional Photography</option><option>Videography / Drone</option><option>Virtual Tours / 3D Matterport</option>
+            <option>For Sale / Open House Signs</option><option>Staging Costs</option><option>Feature Sheets & Print Materials</option>
+            <option>Facebook / Instagram Ads</option><option>Google Ads</option><option>REALTOR.ca / MLS Premium</option>
+            <option>Website Hosting & IDX</option><option>Email Marketing</option>
+            <option>Business Cards & Stationery</option><option>Branded Merchandise</option><option>Flyer Distribution / Canada Post</option>
+            <option>Billboard / Bench Advertising</option><option>Branded Clothing</option>
+            <option>Client Appreciation Events</option><option>Sponsorships (Local Calgary)</option><option>Open House Supplies</option><option>Pop-bys & Client Gifts</option>
+          </select>
+        </div>
+        <div class="receipts-list" id="list-marketing"></div>
+      </div></div>
+    </div>
+  </div>
+
+  <!-- ── OFFICE ── -->
+  <div class="panel" id="panel-office">
+    <div class="two-col">
+      <div><div class="entry-card">
+        <div class="entry-header"><div class="entry-header-text">Office & Tech Expense</div></div>
+        <div class="entry-body">
+          <div class="upload-zone" id="uz-office" ondragover="dragOver(event,'office')" ondragleave="dragLeave('office')" ondrop="drop(event,'office')">
+            <input type="file" accept="image/*" id="file-office" onchange="fileSelected('office')">
+            <img class="upload-preview" id="preview-office">
+            <div class="upload-icon">💻</div>
+            <div class="upload-text">Drop receipt or click to browse</div>
+          </div>
+          <button class="ai-btn" id="ai-btn-office" onclick="scanReceipt('office')">✨ Scan with AI</button>
+          <div class="ai-result" id="ai-result-office"></div>
+          <div class="divider">or enter manually</div>
+          <div class="form-grid-2">
+            <div class="form-row"><label>Date</label><input type="date" id="off-date"></div>
+            <div class="form-row"><label>Amount ($)</label><input type="number" id="off-amount" placeholder="0.00" step="0.01"></div>
+          </div>
+          <div class="form-row"><label>Vendor</label><input type="text" id="off-vendor"></div>
+          <div class="form-row"><label>Category</label>
+            <select id="off-category">
+              <option value="">Select...</option>
+              <optgroup label="Technology">
+                <option>Cell Phone (Business %)</option><option>Laptop / Tablet / Hardware</option>
+                <option>Camera / Photography Gear</option><option>Software Subscriptions (Adobe, CRM, etc.)</option>
+                <option>Cloud Storage / Services</option><option>DocuSign / e-Signature</option><option>Lockbox / Supra eKey</option>
+              </optgroup>
+              <optgroup label="Office">
+                <option>Office Supplies & Stationery</option><option>Home Office (Business %)</option>
+                <option>Furniture & Equipment</option><option>Courier & Shipping</option><option>Printing & Copies</option>
+              </optgroup>
+              <optgroup label="Communication">
+                <option>Internet (Business %)</option><option>Phone Plan (Business %)</option>
+              </optgroup>
+            </select>
+          </div>
+          <div class="form-row"><label>Notes</label><textarea id="off-notes"></textarea></div>
+          <button class="submit-btn" onclick="addExpense('office')">Add Expense</button>
+        </div>
+      </div></div>
+      <div><div class="receipts-card">
+        <div class="receipts-header"><div class="receipts-header-left">Office & Tech</div><button class="export-btn" onclick="exportCSV('office')">↓ CSV</button></div>
+        <div class="filter-row">
+          <select id="filter-off-cat" onchange="renderList('office')">
+            <option value="">All categories</option>
+            <option>Cell Phone (Business %)</option><option>Laptop / Tablet / Hardware</option><option>Camera / Photography Gear</option>
+            <option>Software Subscriptions (Adobe, CRM, etc.)</option><option>Cloud Storage / Services</option>
+            <option>DocuSign / e-Signature</option><option>Lockbox / Supra eKey</option>
+            <option>Office Supplies & Stationery</option><option>Home Office (Business %)</option>
+            <option>Furniture & Equipment</option><option>Courier & Shipping</option><option>Printing & Copies</option>
+            <option>Internet (Business %)</option><option>Phone Plan (Business %)</option>
+          </select>
+        </div>
+        <div class="receipts-list" id="list-office"></div>
+      </div></div>
+    </div>
+  </div>
+
+  <!-- ── PROFESSIONAL ── -->
+  <div class="panel" id="panel-professional">
+    <div class="two-col">
+      <div><div class="entry-card">
+        <div class="entry-header"><div class="entry-header-text">Professional Development</div></div>
+        <div class="entry-body">
+          <div class="upload-zone" id="uz-professional" ondragover="dragOver(event,'professional')" ondragleave="dragLeave('professional')" ondrop="drop(event,'professional')">
+            <input type="file" accept="image/*" id="file-professional" onchange="fileSelected('professional')">
+            <img class="upload-preview" id="preview-professional">
+            <div class="upload-icon">🎓</div>
+            <div class="upload-text">Drop receipt or click to browse</div>
+          </div>
+          <button class="ai-btn" id="ai-btn-professional" onclick="scanReceipt('professional')">✨ Scan with AI</button>
+          <div class="ai-result" id="ai-result-professional"></div>
+          <div class="divider">or enter manually</div>
+          <div class="form-grid-2">
+            <div class="form-row"><label>Date</label><input type="date" id="pro-date"></div>
+            <div class="form-row"><label>Amount ($)</label><input type="number" id="pro-amount" placeholder="0.00" step="0.01"></div>
+          </div>
+          <div class="form-row"><label>Provider / Vendor</label><input type="text" id="pro-vendor"></div>
+          <div class="form-row"><label>Category</label>
+            <select id="pro-category">
+              <option value="">Select...</option>
+              <optgroup label="Education">
+                <option>CREB / AREA Training Courses</option><option>Online Courses & Certifications</option>
+                <option>Real Estate Books & Resources</option><option>Coaching & Mentorship</option>
+              </optgroup>
+              <optgroup label="Networking">
+                <option>Conference & Seminar Fees</option><option>Networking Event Tickets</option><option>Industry Association Events</option>
+              </optgroup>
+              <optgroup label="Legal & Accounting">
+                <option>Accountant / Tax Prep Fees</option><option>Legal Fees (Business)</option><option>Financial Advisor (Business)</option>
+              </optgroup>
+            </select>
+          </div>
+          <div class="form-row"><label>Notes</label><textarea id="pro-notes"></textarea></div>
+          <button class="submit-btn" onclick="addExpense('professional')">Add Expense</button>
+        </div>
+      </div></div>
+      <div><div class="receipts-card">
+        <div class="receipts-header"><div class="receipts-header-left">Professional Development</div><button class="export-btn" onclick="exportCSV('professional')">↓ CSV</button></div>
+        <div class="filter-row">
+          <select id="filter-pro-cat" onchange="renderList('professional')">
+            <option value="">All categories</option>
+            <option>CREB / AREA Training Courses</option><option>Online Courses & Certifications</option>
+            <option>Real Estate Books & Resources</option><option>Coaching & Mentorship</option>
+            <option>Conference & Seminar Fees</option><option>Networking Event Tickets</option><option>Industry Association Events</option>
+            <option>Accountant / Tax Prep Fees</option><option>Legal Fees (Business)</option><option>Financial Advisor (Business)</option>
+          </select>
+        </div>
+        <div class="receipts-list" id="list-professional"></div>
+      </div></div>
+    </div>
+  </div>
+
+  <!-- ── DINING ── -->
+  <div class="panel" id="panel-dining">
+    <div class="two-col">
+      <div><div class="entry-card">
+        <div class="entry-header"><div class="entry-header-text">Client Dining</div></div>
+        <div class="entry-body">
+          <div class="upload-zone" id="uz-dining" ondragover="dragOver(event,'dining')" ondragleave="dragLeave('dining')" ondrop="drop(event,'dining')">
+            <input type="file" accept="image/*" id="file-dining" onchange="fileSelected('dining')" capture="environment">
+            <img class="upload-preview" id="preview-dining">
+            <div class="upload-icon">📷</div>
+            <div class="upload-text">Snap or drop receipt — AI reads it automatically</div>
+          </div>
+          <button class="ai-btn" id="ai-btn-dining" onclick="scanReceipt('dining')">✨ Scan with AI</button>
+          <div class="ai-result" id="ai-result-dining"></div>
+          <div class="divider">or enter manually</div>
+
+          <div class="form-row">
+            <label>Paid by</label>
+            <div class="who-toggle">
+              <div class="who-btn active" id="who-adam" onclick="selectWho('Adam')">Adam</div>
+              <div class="who-btn" id="who-manda" onclick="selectWho('Manda')">Manda</div>
+            </div>
+          </div>
+
+          <div class="form-grid-2">
+            <div class="form-row"><label>Date</label><input type="date" id="din-date"></div>
+            <div class="form-row"><label>Total ($)</label><input type="number" id="din-amount" placeholder="0.00" step="0.01"></div>
+          </div>
+          <div class="form-row"><label>Restaurant</label><input type="text" id="din-restaurant" placeholder="e.g. Ten Foot Henry"></div>
+          <div class="form-row"><label>Meal Type</label>
+            <select id="din-type">
+              <option value="">Select...</option>
+              <option>Client Lunch</option><option>Client Dinner</option><option>Client Breakfast / Coffee</option>
+              <option>Prospect Meeting — Meal</option><option>Buyer Celebration</option><option>Seller Celebration</option>
+              <option>Team / Brokerage Meal</option><option>Referral Partner Meal</option>
+            </select>
+          </div>
+          <div class="form-row"><label>Client / Guest Names</label><input type="text" id="din-clients" placeholder="e.g. John & Sarah Smith"></div>
+          <div class="form-row"><label>Business Purpose (CRA required)</label><textarea id="din-purpose" placeholder="e.g. Discussed offer strategy for 123 Main NW"></textarea></div>
+          <div class="form-grid-2">
+            <div class="form-row"><label># of People</label><input type="number" id="din-people" placeholder="2" min="1"></div>
+            <div class="form-row"><label>Tip ($)</label><input type="number" id="din-tip" placeholder="0.00" step="0.01"></div>
+          </div>
+          <button class="submit-btn dining-btn" onclick="addExpense('dining')">Add Meal</button>
+        </div>
+      </div></div>
+      <div><div class="receipts-card">
+        <div class="receipts-header"><div class="receipts-header-left">Client Dining</div><button class="export-btn" onclick="exportCSV('dining')">↓ CSV</button></div>
+        <div class="filter-row">
+          <select id="filter-din-type" onchange="renderList('dining')">
+            <option value="">All types</option>
+            <option>Client Lunch</option><option>Client Dinner</option><option>Client Breakfast / Coffee</option>
+            <option>Prospect Meeting — Meal</option><option>Buyer Celebration</option><option>Seller Celebration</option>
+            <option>Team / Brokerage Meal</option><option>Referral Partner Meal</option>
+          </select>
+          <select id="filter-din-who" onchange="renderList('dining')">
+            <option value="">All</option><option>Adam</option><option>Manda</option>
+          </select>
+        </div>
+        <div class="receipts-list" id="list-dining"></div>
+      </div></div>
+    </div>
+  </div>
+</div>
+
+<!-- SETUP MODAL -->
+<div class="modal-overlay" id="setup-modal">
+  <div class="modal">
+    <div class="modal-title">Connect Google Sheets</div>
+    <div class="modal-sub">This links your expense tracker to a Google Sheet so both you and Manda can access it from any device. Takes about 5 minutes to set up.</div>
+
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-content">
+        <div class="step-title">Create the Google Sheet</div>
+        <div class="step-desc">Go to <strong>sheets.google.com</strong>, create a new blank sheet. Name it <em>"Sengsavang Expenses"</em> or anything you like. Copy the Sheet ID from the URL — it's the long string between <code>/d/</code> and <code>/edit</code>.</div>
+        <input class="step-input" id="input-sheet-id" placeholder="Paste Sheet ID here (e.g. 1BxiM...)" oninput="saveConfig()">
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-content">
+        <div class="step-title">Create a Google Apps Script</div>
+        <div class="step-desc">In the sheet, go to <strong>Extensions → Apps Script</strong>. Delete any existing code and paste the code below, then click <strong>Deploy → New Deployment → Web App</strong>. Set "Who has access" to <em>Anyone</em>. Copy the Web App URL.</div>
+        <div class="code-block" id="apps-script-code">// Paste this in Google Apps Script
+const SHEET_ID = 'YOUR_SHEET_ID_HERE';
+
+function doPost(e) {
+  try {
+    const data = JSON.parse(e.postData.contents);
+    const ss = SpreadsheetApp.openById(SHEET_ID);
+    let sheet = ss.getSheetByName(data.tab);
+    if (!sheet) {
+      sheet = ss.insertSheet(data.tab);
+      sheet.appendRow(['ID','Date','Vendor/Restaurant','Category/Type','Amount','Extra1','Extra2','Notes','PaidBy','Timestamp']);
+    }
+    if (data.action === 'add') {
+      sheet.appendRow([
+        data.row.id, data.row.date, data.row.vendor, data.row.category,
+        data.row.amount, data.row.extra1||'', data.row.extra2||'',
+        data.row.notes||'', data.row.paidBy||'', new Date().toISOString()
+      ]);
+    } else if (data.action === 'delete') {
+      const rows = sheet.getDataRange().getValues();
+      for (let i = rows.length - 1; i >= 1; i--) {
+        if (String(rows[i][0]) === String(data.id)) { sheet.deleteRow(i+1); break; }
+      }
+    }
+    return ContentService.createTextOutput(JSON.stringify({ok:true})).setMimeType(ContentService.MimeType.JSON);
+  } catch(err) {
+    return ContentService.createTextOutput(JSON.stringify({ok:false,error:err.message})).setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+function doGet(e) {
+  try {
+    const tab = e.parameter.tab;
+    const ss = SpreadsheetApp.openById(SHEET_ID);
+    const sheet = ss.getSheetByName(tab);
+    if (!sheet) return ContentService.createTextOutput(JSON.stringify({ok:true,rows:[]})).setMimeType(ContentService.MimeType.JSON);
+    const rows = sheet.getDataRange().getValues();
+    const headers = rows[0];
+    const data = rows.slice(1).map(r => Object.fromEntries(headers.map((h,i) => [h,r[i]])));
+    return ContentService.createTextOutput(JSON.stringify({ok:true,rows:data})).setMimeType(ContentService.MimeType.JSON);
+  } catch(err) {
+    return ContentService.createTextOutput(JSON.stringify({ok:false,error:err.message})).setMimeType(ContentService.MimeType.JSON);
+  }
+}</div>
+        <button class="copy-btn" onclick="copyScript()">Copy Code</button>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-content">
+        <div class="step-title">Paste your Web App URL</div>
+        <div class="step-desc">After deploying, copy the Web App URL (looks like <code>https://script.google.com/macros/s/.../exec</code>) and paste it below.</div>
+        <input class="step-input" id="input-webapp-url" placeholder="Paste Web App URL here" oninput="saveConfig()">
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">4</div>
+      <div class="step-content">
+        <div class="step-title">Share with Manda</div>
+        <div class="step-desc">Share the Google Sheet with <strong><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="fd909c93999cd3919c90c5bd9a909c9491d39e9290">[email&#160;protected]</a></strong> (Editor access). Then bookmark this HTML file and share it with Manda — you can save it to Google Drive so you both access the same file.</div>
+      </div>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeSetup()">Close</button>
+      <button class="btn-primary" onclick="testConnection()">Test Connection</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
+const STORAGE_KEY = 'aset_v2';
+const CONFIG_KEY = 'aset_config';
+const TABS = ['general','vehicle','marketing','office','professional','dining'];
+const today = new Date().toISOString().split('T')[0];
+const prefixMap = {general:'gen',vehicle:'veh',marketing:'mkt',office:'off',professional:'pro',dining:'din'};
+
+let selectedWho = 'Adam';
+const fileData = {};
+
+// ── Config ────────────────────────────────────────────────
+function loadConfig() {
+  try { return JSON.parse(localStorage.getItem(CONFIG_KEY)) || {}; } catch { return {}; }
+}
+function saveConfig() {
+  const cfg = {
+    sheetId: document.getElementById('input-sheet-id')?.value || '',
+    webAppUrl: document.getElementById('input-webapp-url')?.value || '',
+  };
+  localStorage.setItem(CONFIG_KEY, JSON.stringify(cfg));
+}
+function getWebAppUrl() { return loadConfig().webAppUrl || ''; }
+
+// ── Init dates ────────────────────────────────────────────
+Object.values(prefixMap).forEach(p => { const el = document.getElementById(`${p}-date`); if(el) el.value = today; });
+
+// ── Sync UI ───────────────────────────────────────────────
+function setSyncStatus(state, msg) {
+  const dot = document.getElementById('sync-dot');
+  const label = document.getElementById('sync-label');
+  dot.className = 'sync-dot ' + state;
+  label.textContent = msg;
+}
+
+// ── Storage (local fallback) ───────────────────────────────
+function loadLocal() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || Object.fromEntries(TABS.map(t=>[t,[]])); }
+  catch { return Object.fromEntries(TABS.map(t=>[t,[]])); }
+}
+function saveLocal(d) { localStorage.setItem(STORAGE_KEY, JSON.stringify(d)); }
+
+// ── Google Sheets sync ────────────────────────────────────
+// Google Apps Script requires no-cors for POST from browser files.
+// We use an image ping trick for GET (to verify) and no-cors POST for writes.
+async function syncToSheets(tab, action, row, id) {
+  const url = getWebAppUrl();
+  if (!url) return;
+  setSyncStatus('syncing', 'Syncing...');
+  try {
+    await fetch(url, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ tab, action, row, id }),
+    });
+    setSyncStatus('synced', 'Synced to Google Sheets ✓');
+  } catch {
+    setSyncStatus('error', 'Sync failed — saved locally');
+  }
+}
+
+async function testConnection() {
+  const url = document.getElementById('input-webapp-url').value.trim();
+  if (!url) { showToast('Paste the Web App URL first', 'error'); return; }
+  if (!url.startsWith('https://script.google.com/macros/s/') || !url.endsWith('/exec')) {
+    showToast('URL must start with script.google.com/macros/s/ and end with /exec', 'error');
+    setSyncStatus('error', 'Invalid URL format');
+    return;
+  }
+  setSyncStatus('syncing', 'Testing...');
+  // Use no-cors GET ping — we can't read the response but a successful
+  // network call (no exception) means the URL is reachable and deployed.
+  try {
+    await fetch(url + '?tab=general&ping=1', { mode: 'no-cors' });
+    // If we get here without throwing, the endpoint is reachable
+    saveConfig();
+    setSyncStatus('synced', 'Connected to Google Sheets ✓');
+    showToast('Connected! Expenses will now sync to your Sheet.', 'success');
+    closeSetup();
+  } catch {
+    setSyncStatus('error', 'Connection failed — check URL');
+    showToast('Could not reach that URL. Double-check it ends in /exec.', 'error');
+  }
+}
+
+// ── Tab ───────────────────────────────────────────────────
+function switchTab(tab) {
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelector(`.tab[data-tab="${tab}"]`).classList.add('active');
+  document.getElementById(`panel-${tab}`).classList.add('active');
+}
+
+// ── Vehicle KM toggle ─────────────────────────────────────
+function toggleKmRow() {
+  const v = document.getElementById('veh-category').value;
+  document.getElementById('km-row').style.display = v === 'Business KM Log Entry' ? 'block' : 'none';
+}
+
+// ── Who paid (dining) ─────────────────────────────────────
+function selectWho(who) {
+  selectedWho = who;
+  document.getElementById('who-adam').classList.toggle('active', who==='Adam');
+  document.getElementById('who-manda').classList.toggle('active', who==='Manda');
+}
+
+// ── File handling ─────────────────────────────────────────
+function fileSelected(tab) {
+  const file = document.getElementById(`file-${tab}`).files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    fileData[tab] = e.target.result;
+    const prev = document.getElementById(`preview-${tab}`);
+    prev.src = e.target.result; prev.style.display = 'block';
+    document.querySelector(`#uz-${tab} .upload-icon`).style.display = 'none';
+    document.querySelector(`#uz-${tab} .upload-text`).style.display = 'none';
+    document.getElementById(`ai-btn-${tab}`).style.display = 'flex';
+  };
+  reader.readAsDataURL(file);
+}
+function dragOver(e,tab){e.preventDefault();document.getElementById(`uz-${tab}`).classList.add('dragover');}
+function dragLeave(tab){document.getElementById(`uz-${tab}`).classList.remove('dragover');}
+function drop(e,tab){
+  e.preventDefault(); dragLeave(tab);
+  const file=e.dataTransfer.files[0];
+  if(file){const input=document.getElementById(`file-${tab}`);const dt=new DataTransfer();dt.items.add(file);input.files=dt.files;fileSelected(tab);}
+}
+
+// ── AI Scan ───────────────────────────────────────────────
+const catLists = {
+  general:['CREB Membership & Dues','RECA License Fees','AREA Membership','CREA Dues','Client Meals & Entertainment','Client Gifts (≤$50 limit)','Referral Fees Paid','Brokerage Desk Fees','Commission Split','E&O Insurance','Bank Fees & Charges','Postage & Courier','General Business'],
+  vehicle:['Public Charging (FLO / ChargePoint)','Home Charging (Business %)','EV Lease / Financing Payment (Business %)','EV Registration & License Plates','EV Insurance (Business %)','Tires & Winter Tires','Detailing & Car Wash','Parking (Client / Showing)','Parking (Downtown / Office)','Accessories & Equipment','Business KM Log Entry'],
+  marketing:['Professional Photography','Videography / Drone','Virtual Tours / 3D Matterport','For Sale / Open House Signs','Staging Costs','Feature Sheets & Print Materials','Facebook / Instagram Ads','Google Ads','REALTOR.ca / MLS Premium','Website Hosting & IDX','Email Marketing','Business Cards & Stationery','Branded Merchandise','Flyer Distribution / Canada Post','Billboard / Bench Advertising','Branded Clothing','Client Appreciation Events','Sponsorships (Local Calgary)','Open House Supplies','Pop-bys & Client Gifts'],
+  office:['Cell Phone (Business %)','Laptop / Tablet / Hardware','Camera / Photography Gear','Software Subscriptions (Adobe, CRM, etc.)','Cloud Storage / Services','DocuSign / e-Signature','Lockbox / Supra eKey','Office Supplies & Stationery','Home Office (Business %)','Furniture & Equipment','Courier & Shipping','Printing & Copies','Internet (Business %)','Phone Plan (Business %)'],
+  professional:['CREB / AREA Training Courses','Online Courses & Certifications','Real Estate Books & Resources','Coaching & Mentorship','Conference & Seminar Fees','Networking Event Tickets','Industry Association Events','Accountant / Tax Prep Fees','Legal Fees (Business)','Financial Advisor (Business)'],
+  dining:['Client Lunch','Client Dinner','Client Breakfast / Coffee','Prospect Meeting — Meal','Buyer Celebration','Seller Celebration','Team / Brokerage Meal','Referral Partner Meal'],
+};
+
+async function scanReceipt(tab) {
+  const btn = document.getElementById(`ai-btn-${tab}`);
+  const resultDiv = document.getElementById(`ai-result-${tab}`);
+  const imgData = fileData[tab];
+  if (!imgData) return;
+  btn.classList.add('loading'); btn.textContent = '⏳ Scanning...';
+  resultDiv.classList.remove('visible');
+  const base64 = imgData.split(',')[1];
+  const mime = (imgData.match(/data:(image\/\w+);/)||[])[1]||'image/jpeg';
+  const isDining = tab === 'dining';
+  const systemPrompt = isDining
+    ? `You are a receipt scanner. Extract and return ONLY JSON: {"date":"YYYY-MM-DD","vendor":"restaurant name","amount":number,"tip":number,"category":"best match"}. Categories: ${catLists[tab].join(', ')}. Use today ${today} if unclear.`
+    : `You are a receipt scanner for a Calgary realtor. Return ONLY JSON: {"date":"YYYY-MM-DD","vendor":"string","amount":number,"category":"best match","notes":"string"}. Categories: ${catLists[tab].join(', ')}. Use today ${today} if unclear.`;
+  try {
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({ model:'claude-sonnet-4-20250514', max_tokens:300, system:systemPrompt,
+        messages:[{role:'user',content:[
+          {type:'image',source:{type:'base64',media_type:mime,data:base64}},
+          {type:'text',text:'Extract receipt data.'}
+        ]}]
+      })
+    });
+    const data = await resp.json();
+    const parsed = JSON.parse((data.content?.[0]?.text||'').replace(/```json|```/g,'').trim());
+    const p = prefixMap[tab];
+    if(parsed.date) document.getElementById(`${p}-date`).value = parsed.date;
+    if(parsed.amount) document.getElementById(`${p}-amount`).value = parsed.amount;
+    const vendorField = tab==='dining' ? 'din-restaurant' : `${p}-vendor`;
+    if(parsed.vendor) document.getElementById(vendorField).value = parsed.vendor;
+    const catField = tab==='dining' ? 'din-type' : `${p}-category`;
+    if(parsed.category) document.getElementById(catField).value = parsed.category;
+    if(parsed.notes && document.getElementById(`${p}-notes`)) document.getElementById(`${p}-notes`).value = parsed.notes;
+    if(parsed.tip && tab==='dining') document.getElementById('din-tip').value = parsed.tip;
+    resultDiv.innerHTML = `✓ <span>${parsed.vendor||'?'}</span> · <span>$${parsed.amount||'?'}</span> · <span>${parsed.category||'?'}</span>`;
+    resultDiv.classList.add('visible');
+    showToast('Scanned!', 'success');
+  } catch { showToast('Scan failed — fill in manually', 'error'); }
+  btn.classList.remove('loading'); btn.innerHTML = '✨ Scan with AI';
+}
+
+// ── Add expense ───────────────────────────────────────────
+function addExpense(tab) {
+  const p = prefixMap[tab];
+  const isDining = tab === 'dining';
+  const dateField = `${p}-date`;
+  const amountField = `${p}-amount`;
+  const vendorField = isDining ? 'din-restaurant' : `${p}-vendor`;
+  const catField = isDining ? 'din-type' : `${p}-category`;
+  const notesField = isDining ? 'din-purpose' : `${p}-notes`;
+
+  const date = document.getElementById(dateField).value;
+  const amount = parseFloat(document.getElementById(amountField).value);
+  const vendor = document.getElementById(vendorField)?.value.trim()||'';
+  const category = document.getElementById(catField).value;
+  const notes = document.getElementById(notesField)?.value.trim()||'';
+
+  if (!date||!amount||!vendor||!category) { showToast('Fill in Date, Amount, Vendor/Restaurant & Type','error'); return; }
+
+  const row = { id: Date.now(), date, amount, vendor, category, notes };
+
+  // Tab-specific extras
+  if (tab === 'vehicle') {
+    row.extra1 = document.getElementById('veh-vehicle').value;
+    row.extra2 = document.getElementById('veh-km').value||'';
+    row.paidBy = '';
+  } else if (tab === 'marketing') {
+    row.extra1 = document.getElementById('mkt-listing').value.trim()||'';
+    row.extra2 = '';
+    row.paidBy = '';
+  } else if (tab === 'dining') {
+    row.extra1 = document.getElementById('din-clients').value.trim()||'';
+    row.extra2 = document.getElementById('din-people').value||'';
+    row.tip = parseFloat(document.getElementById('din-tip').value)||0;
+    row.amount = amount + row.tip;
+    row.paidBy = selectedWho;
+  }
+
+  const data = loadLocal();
+  data[tab].push(row);
+  saveLocal(data);
+  syncToSheets(tab, 'add', row, null);
+  renderAll();
+  resetForm(tab);
+  showToast(isDining ? 'Meal logged! 🍽' : 'Expense added!', 'success');
+}
+
+function resetForm(tab) {
+  const p = prefixMap[tab];
+  const fields = ['date','amount','vendor','category','notes'];
+  const extras = {dining:['restaurant','clients','people','tip','purpose'],vehicle:['vehicle','km'],marketing:['listing'],};
+  fields.forEach(f => {
+    const el = document.getElementById(`${p}-${f}`);
+    if(el) el.value = f==='date' ? today : '';
+  });
+  (extras[tab]||[]).forEach(f => {
+    const el = document.getElementById(`${tab==='dining'?'din':p}-${f}`);
+    if(el) el.value='';
+  });
+  // Reset upload
+  const prev = document.getElementById(`preview-${tab}`);
+  if(prev) { prev.style.display='none'; }
+  const uz = document.getElementById(`uz-${tab}`);
+  if(uz) {
+    const icon = uz.querySelector('.upload-icon');
+    const txt = uz.querySelector('.upload-text');
+    if(icon) icon.style.display='block';
+    if(txt) txt.style.display='block';
+  }
+  document.getElementById(`ai-btn-${tab}`).style.display='none';
+  document.getElementById(`ai-result-${tab}`).classList.remove('visible');
+  fileData[tab]=null;
+  if(tab==='vehicle') document.getElementById('km-row').style.display='none';
+}
+
+// ── Delete ────────────────────────────────────────────────
+function deleteExpense(tab, id) {
+  const data = loadLocal();
+  data[tab] = data[tab].filter(i=>i.id!==id);
+  saveLocal(data);
+  syncToSheets(tab, 'delete', null, id);
+  renderAll();
+  showToast('Deleted','success');
+}
+
+// ── Render ────────────────────────────────────────────────
+function renderList(tab) {
+  const data = loadLocal();
+  const list = document.getElementById(`list-${tab}`);
+  const yr = document.getElementById('globalYear')?.value||'2026';
+
+  const filterIds = {general:'filter-gen-cat',vehicle:'filter-veh-cat',marketing:'filter-mkt-cat',office:'filter-off-cat',professional:'filter-pro-cat',dining:'filter-din-type'};
+  const filterCat = document.getElementById(filterIds[tab])?.value||'';
+  const filterVeh = tab==='vehicle' ? (document.getElementById('filter-veh-veh')?.value||'') : '';
+  const filterWho = tab==='dining' ? (document.getElementById('filter-din-who')?.value||'') : '';
+
+  let items = [...data[tab]].filter(i=>i.date.startsWith(yr));
+  if(filterCat) items=items.filter(i=>i.category===filterCat);
+  if(filterVeh) items=items.filter(i=>i.extra1===filterVeh);
+  if(filterWho) items=items.filter(i=>i.paidBy===filterWho);
+  items.sort((a,b)=>b.date.localeCompare(a.date));
+
+  if(!items.length){
+    list.innerHTML=`<div class="empty-state"><div class="empty-icon">${tab==='dining'?'🍽':'📂'}</div>No entries yet</div>`;
+    return;
+  }
+
+  const isDining = tab==='dining';
+  list.innerHTML = items.map(item => {
+    let sub = '';
+    if(tab==='vehicle') sub = [item.extra1, item.extra2?item.extra2+' km':'', item.notes].filter(Boolean).join(' · ');
+    else if(tab==='marketing') sub = [item.extra1, item.notes].filter(Boolean).join(' · ');
+    else if(tab==='dining') sub = [item.extra1, item.extra2?item.extra2+' ppl':'', item.notes].filter(Boolean).join(' · ');
+    else sub = item.notes||'';
+    const catClass = isDining ? 'dining-cat' : '';
+    return `
+      <div class="receipt-row">
+        <div class="receipt-date">${item.date}</div>
+        <div class="receipt-info">
+          <div class="receipt-vendor">${esc(item.vendor)}</div>
+          ${sub?`<div class="receipt-notes">${esc(sub)}</div>`:''}
+        </div>
+        <div class="receipt-cat ${catClass}">${esc(item.category)}</div>
+        <div class="receipt-amount">$${Number(item.amount).toFixed(2)}</div>
+        <button class="delete-btn" onclick="deleteExpense('${tab}',${item.id})">×</button>
+      </div>`;
+  }).join('');
+}
+
+function renderSummary() {
+  const data = loadLocal();
+  const yr = document.getElementById('globalYear')?.value||'2026';
+  let grand=0, grandCount=0;
+  TABS.forEach(tab => {
+    const items = data[tab].filter(i=>i.date.startsWith(yr));
+    const total = items.reduce((s,i)=>s+Number(i.amount),0);
+    grand+=total; grandCount+=items.length;
+    const se = document.getElementById(`sum-${tab}`);
+    const ce = document.getElementById(`cnt-${tab}`);
+    if(se) se.textContent = '$'+total.toFixed(2);
+    if(ce) ce.textContent = items.length;
+  });
+  document.getElementById('sum-total').textContent = '$'+grand.toFixed(2);
+  document.getElementById('cnt-total').textContent = grandCount+' receipts';
+}
+
+function renderAll() { TABS.forEach(t=>renderList(t)); renderSummary(); }
+
+// ── Export CSV ────────────────────────────────────────────
+function exportCSV(tab) {
+  const data = loadLocal();
+  const yr = document.getElementById('globalYear')?.value||'2026';
+  const items = data[tab].filter(i=>i.date.startsWith(yr));
+  const headers = ['Date','Vendor/Restaurant','Category/Type','Amount ($)','Extra1','Extra2','Notes','Paid By'];
+  const rows = items.map(i=>[i.date,i.vendor,i.category,Number(i.amount).toFixed(2),i.extra1||'',i.extra2||'',i.notes||'',i.paidBy||''].map(v=>`"${String(v).replace(/"/g,'""')}"`));
+  const csv = [headers,...rows].map(r=>r.join(',')).join('\n');
+  const blob = new Blob([csv],{type:'text/csv'});
+  const a = document.createElement('a');
+  a.href=URL.createObjectURL(blob); a.download=`adam_${tab}_${yr}.csv`; a.click();
+  showToast('Exported!','success');
+}
+
+// ── Setup Modal ───────────────────────────────────────────
+function openSetup() {
+  const cfg = loadConfig();
+  if(cfg.sheetId) document.getElementById('input-sheet-id').value = cfg.sheetId;
+  if(cfg.webAppUrl) document.getElementById('input-webapp-url').value = cfg.webAppUrl;
+  document.getElementById('setup-modal').classList.add('open');
+}
+function closeSetup() { document.getElementById('setup-modal').classList.remove('open'); }
+function copyScript() {
+  const text = document.getElementById('apps-script-code').textContent;
+  navigator.clipboard.writeText(text).then(()=>showToast('Code copied!','success'));
+}
+
+// ── Toast ─────────────────────────────────────────────────
+let tt;
+function showToast(msg,type='success'){
+  const t=document.getElementById('toast'); t.textContent=msg; t.className=`toast ${type} show`;
+  clearTimeout(tt); tt=setTimeout(()=>t.classList.remove('show'),2800);
+}
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+// ── Init ───────────────────
+const cfg = loadConfig();
+if(cfg.webAppUrl) setSyncStatus('synced','Connected to Google Sheets ✓');
+renderAll();
+</script>
+</body>
+</html>
